@@ -1,0 +1,86 @@
+* Notes
+<2022-10-26 Wed 19:34>: I used these commands to set this lab up:
+#+begin_src bash
+bundle install
+rails db:migrate db:seed
+#+end_src
+
+The lab has the following relationship:
+- There is a 'one-to-many' relationship between the 'Dog House' and 'Reviews' models
+- Meaning: A dog house has 'many' Reviews
+- Therefore: 'Reviews' model will have a foreign key for the 'Dog House' model aka 'dog_house_id'
+
+I then tried to delete the first 'DogHouse' record in the 'rails c' console, and received the following output which had the 'ActiveRecord::InvalidForeignKey (SQLite3::ConstraintException: FOREIGN KEY constraint failed)' error since there are reviews associated with any particular 'Dog House':
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-4/phase-4-deleting-associated-data $ rails c
+Loading development environment (Rails 6.1.3.2)
+.gem :001 > DogHouse.first.destroy()
+   (0.7ms)  SELECT sqlite_version(*)
+  DogHouse Load (0.1ms)  SELECT "dog_houses".* FROM "dog_houses" ORDER BY "dog_houses"."id" ASC LIMIT ?  [["LIMIT", 1]]
+  TRANSACTION (0.0ms)  begin transaction
+  DogHouse Destroy (1.1ms)  DELETE FROM "dog_houses" WHERE "dog_houses"."id" = ?  [["id", 1]]
+  TRANSACTION (0.9ms)  rollback transaction
+Traceback (most recent call last):
+        1: from (irb):1
+ActiveRecord::InvalidForeignKey (SQLite3::ConstraintException: FOREIGN KEY constraint failed)
+#+end_src
+
+I then used the .destroy_all() method accordingly in the 'rails c' console:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-4/phase-4-deleting-associated-data $ rails c
+Loading development environment (Rails 6.1.3.2)
+.gem :001 > DogHouse.first.reviews.destroy_all()
+   (0.8ms)  SELECT sqlite_version(*)
+  DogHouse Load (0.1ms)  SELECT "dog_houses".* FROM "dog_houses" ORDER BY "dog_houses"."id" ASC LIMIT ?  [["LIMIT", 1]]
+  Review Load (0.1ms)  SELECT "reviews".* FROM "reviews" WHERE "reviews"."dog_house_id" = ?  [["dog_house_id", 1]]
+  TRANSACTION (0.0ms)  begin transaction
+  Review Destroy (0.7ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 1]]
+  Review Destroy (0.2ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 2]]
+  Review Destroy (0.1ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 3]]
+  Review Destroy (0.0ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 4]]
+  Review Destroy (0.0ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 5]]
+  TRANSACTION (1.5ms)  commit transaction
+ => [#<Review id: 1, username: "marti.ebert", comment: "Small batch mlkshk polaroid normcore lomo church-k...", rating: 1, dog_house_id: 1, created_at: "2022-10-27 00:35:19.294212000 +0000", updated_at: "2022-10-27 00:35:19.294212000 +0000">, #<Review id: 2, username: "ali_rippin", comment: "Swag helvetica hammock kinfolk cronut cliche pabst...", rating: 2, dog_house_id: 1, created_at: "2022-10-27 00:35:19.304394000 +0000", updated_at: "2022-10-27 00:35:19.304394000 +0000">, #<Review id: 3, username: "josie", comment: "Beard asymmetrical gastropub fashion axe brunch ec...", rating: 3, dog_house_id: 1, created_at: "2022-10-27 00:35:19.312730000 +0000", updated_at: "2022-10-27 00:35:19.312730000 +0000">, #<Review id: 4, username: "sook", comment: "Umami cold-pressed phlogiston mumblecore brunch.", rating: 5, dog_house_id: 1, created_at: "2022-10-27 00:35:19.320100000 +0000", updated_at: "2022-10-27 00:35:19.320100000 +0000">, #<Review id: 5, username: "roselyn.reichert", comment: "Phlogiston deep v vhs master bespoke.", rating: 4, dog_house_id: 1, created_at: "2022-10-27 00:35:19.326211000 +0000", updated_at: "2022-10-27 00:35:19.326211000 +0000">]
+#+end_src
+
+Now that I have safely deleted all of the associated reviews with the previous '.destroy_all()' method for the reviews associated with the first 'DogHouse' result, I then deleted it with '.destroy()' without an issue:
+#+begin_src bash
+.gem :002 > DogHouse.first.destroy()
+  DogHouse Load (0.2ms)  SELECT "dog_houses".* FROM "dog_houses" ORDER BY "dog_houses"."id" ASC LIMIT ?  [["LIMIT", 1]]
+  TRANSACTION (0.2ms)  begin transaction
+  DogHouse Destroy (1.3ms)  DELETE FROM "dog_houses" WHERE "dog_houses"."id" = ?  [["id", 1]]
+  TRANSACTION (3.1ms)  commit transaction
+ => #<DogHouse id: 1, image: "https://loveincorporated.blob.core.windows.net/con...", name: "Mid Century Studio in Lively Neighborhood", city: "Denver", price: 76, favorite: false, latitude: 0.39759164e2, longitude: -0.104996874e3, created_at: "2022-10-27 00:35:18.148338000 +0000", updated_at: "2022-10-27 00:35:18.148338000 +0000">
+#+end_src
+
+I then revised the 'app/models/dog_house.rb' DogHouse model with the following change to include the 'dependent: :destroy' section so that we can easily destroy any instance later on if we want to:
+#+begin_src ruby
+class DogHouse < ApplicationRecord
+  has_many :reviews, dependent: :destroy
+end
+#+end_src
+
+I then destroyed the second 'DogHouse' instance without any issue now that the 'dependent: :destroy' section was added to the 'DogHouse' model:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-4/phase-4-deleting-associated-data $ rails c
+Loading development environment (Rails 6.1.3.2)
+.gem :001 > DogHouse.second.destroy()
+   (0.9ms)  SELECT sqlite_version(*)
+  DogHouse Load (0.1ms)  SELECT "dog_houses".* FROM "dog_houses" ORDER BY "dog_houses"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+  TRANSACTION (0.0ms)  begin transaction
+  Review Load (0.1ms)  SELECT "reviews".* FROM "reviews" WHERE "reviews"."dog_house_id" = ?  [["dog_house_id", 3]]
+  Review Destroy (0.3ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 11]]
+  Review Destroy (0.1ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 12]]
+  Review Destroy (0.0ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 13]]
+  Review Destroy (0.1ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 14]]
+  Review Destroy (0.1ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 15]]
+  Review Destroy (0.0ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 16]]
+  Review Destroy (0.1ms)  DELETE FROM "reviews" WHERE "reviews"."id" = ?  [["id", 17]]
+  DogHouse Destroy (0.1ms)  DELETE FROM "dog_houses" WHERE "dog_houses"."id" = ?  [["id", 3]]
+  TRANSACTION (1.6ms)  commit transaction
+ => #<DogHouse id: 3, image: "https://i.pinimg.com/originals/24/bb/c7/24bbc74879...", name: "Convenient Apartment in Lively Downtown", city: "Washington D.C.", price: 11, favorite: false, latitude: 0.38832238e2, longitude: -0.77034212e2, created_at: "2022-10-27 00:35:19.367393000 +0000", updated_at: "2022-10-27 00:35:19.367393000 +0000">
+#+end_src
+
+Answers To Check Your Understanding:
+- Q1. In what situations would you need to use the dependent: :destroy option?
+- Answer: Using the 'dependent: :destroy' option is a great tool to use for a given Active Record model that contains empty data that's associated with another model, ex: If a 'DogHouse' is deleted, then its associated 'Reviews' should be deleted, hence, you should add 'dependent: :destroy' to the 'DogHouse' model to accomodate this idea to future proof the 'DogHouse' portion within the app's context when a user deletes their 'DogHouse' listing
